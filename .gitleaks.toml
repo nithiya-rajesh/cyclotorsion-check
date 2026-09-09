@@ -1,0 +1,18 @@
+title = "gitleaks config for CyclotorsionCheck"
+
+# Extend gitleaks' default ruleset rather than replacing it — we only need to
+# allowlist one specific, already-reviewed false positive below, not redefine
+# what counts as a secret project-wide.
+[extend]
+useDefault = true
+
+[allowlist]
+description = '''
+Firebase Web SDK config apiKey (frontend/js/config.js). This is not a secret:
+Firebase's own documentation states the web app config is safe to expose in
+client-side code — access control is enforced by Firebase Security Rules and
+this project's own server-side Firebase ID-token verification (see
+backend/cyclotorsion/auth.py), not by keeping this value hidden. Matches
+gitleaks' built-in google-api-key pattern as a false positive.
+'''
+regexes = ['''AIzaSyC397JZRrSMX3EPou90y_68N1bElHVKbBo''']

@@ -1,0 +1,12 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+Pillow>=10.0
+
+# Firewall/auth + AI + analytics backends. These are required for production
+# (CC_AUTH_ENABLED, CC_DETECT_MODE / GEMINI_API_KEY, CC_STORAGE_MODE=bigquery)
+# but not for the local/test path, which uses the mock detector + in-memory
+# store + open auth by default.
+firebase-admin>=6.0
+google-genai>=1.0
+google-cloud-bigquery>=3.0

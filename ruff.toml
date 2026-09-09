@@ -1,0 +1,45 @@
+# Ruff configuration (lint + format) for the whole repo.
+# Ruff discovers this file by walking up from each linted file, so one config
+# covers Python under both backend/ (package + tests) and scripts/.
+#
+# Run (repo root):
+#   ruff check .            # lint
+#   ruff format .           # auto-format
+#   ruff format --check .   # CI: verify formatting
+
+# src entries let ruff resolve first-party imports (cyclotorsion package,
+# generate_synthetic_data / smoke_api / etc.) for unused-import lint rules.
+src = ["backend", "scripts"]
+
+include = ["backend/**/*.py", "scripts/**/*.py"]
+extend-exclude = [
+    "**/__pycache__",
+    "**/.pytest_cache",
+]
+
+# Match backend/pyproject.toml's `requires-python = ">=3.10"` floor — NOT
+# whatever interpreter happens to be installed locally. This was previously
+# "py314" ("match the locally installed interpreter"), which is wrong on two
+# counts: CI actually runs tests on Python 3.13 (.github/workflows/ci.yml),
+# and ruff's py314 formatting target turned out to accept (and reformat
+# *toward*) `except A, B, C:` without parentheses — invalid syntax on every
+# real Python 3.x release, including 3.13. That mismatch let a genuine
+# SyntaxError (backend/cyclotorsion/routers/detect.py) sit undetected through
+# `ruff format --check .` locally while breaking CI outright. py310 targets
+# the actual minimum supported version, so formatting stays valid across the
+# whole range this project claims to support, not just one interpreter.
+target-version = "py310"
+
+# Lint rules: default (E/F) plus import sorting (I), pyupgrade (UP), a curated
+# set of bug-risk rules (B), and simplified-code suggestions (SIM).
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = [
+    "E501",  # line length is enforced by the formatter; don't hard-fail long lines
+    # B008: function calls in argument defaults. This is the idiomatic FastAPI
+    # pattern (Depends(...) / File(...) / security(...)) throughout app.py,
+    # auth.py, and rate_limit.py — not a defect, so it's disabled project-wide.
+    "B008",
+]
+
+# Formatting — ruff's default (PEP 8-aligned, close to Black).

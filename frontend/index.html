@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CyclotorsionCheck</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- font-display: swap + the system-font fallback chain in styles.css mean
+       the page still renders correctly and legibly if this request is slow or
+       blocked (relevant given the PRD's low-connectivity pilot sites). -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#view">Skip to content</a>
+    <!-- Non-dismissible decision-support disclaimer (PRD US-3.2). Rendered for
+       every authenticated session and never permanently dismissible. -->
+    <div id="disclaimer-banner" class="disclaimer-banner" hidden>
+      <span class="disclaimer-icon" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M12 9v3.75m0 3.75h.007M4.318 18.5h15.364c1.53 0 2.485-1.667 1.72-2.996L13.72 4.005c-.765-1.33-2.675-1.33-3.44 0L2.598 15.504C1.833 16.833 2.788 18.5 4.318 18.5z"
+          />
+        </svg>
+      </span>
+      <span>
+        <strong>Decision-support aid only.</strong> This tool is a verification aid that augments —
+        never replaces — clinical judgment. It is not a diagnostic or autonomous therapeutic device.
+        Results must be confirmed by the operating surgeon.
+      </span>
+    </div>
+
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+            />
+            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </span>
+        <span class="brand-name">CyclotorsionCheck</span>
+      </div>
+      <button
+        id="nav-toggle"
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="main-nav"
+        aria-label="Open menu"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+        </svg>
+      </button>
+      <nav id="main-nav" class="main-nav" hidden>
+        <button class="nav-link" data-route="analyze">Analyze</button>
+        <button class="nav-link" data-route="patients">Patients</button>
+        <button class="nav-link" data-route="history">History</button>
+        <button class="nav-link" data-route="insights">Insights</button>
+        <button id="logout-btn" class="nav-link nav-ghost" type="button">Log out</button>
+      </nav>
+    </header>
+
+    <main id="view" class="view"></main>
+
+    <!-- The app dynamically imports the Firebase SDK within js/auth.js so it can
+       handle the unconfigured case gracefully; no static CDN script tags here
+       (avoids a second module instance). -->
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/pages/login.js"></script>
+    <script type="module" src="js/pages/analyze.js"></script>
+    <script type="module" src="js/pages/patients.js"></script>
+    <script type="module" src="js/pages/history.js"></script>
+    <script type="module" src="js/pages/insights.js"></script>
+    <script type="module" src="js/router.js"></script>
+  </body>
+</html>

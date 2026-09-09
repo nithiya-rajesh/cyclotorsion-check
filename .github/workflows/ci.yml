@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least-privilege default (AppSec review Medium: CWE-269) — no job here pushes,
+# comments, or publishes; a job that needs more must request it explicitly.
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint + format + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install pinned production deps (requirements.lock)
+        # Installed FIRST and deliberately as its own step (AppSec review
+        # Medium): this is what docker/Dockerfile's `api` target ships, so it
+        # must also be what the test suite runs against — not a second,
+        # order-dependent install that happens to reconcile to the same versions.
+        run: pip install -r backend/requirements.lock
+
+      - name: Install backend (editable + dev tools)
+        # The runtime deps above already satisfy pyproject's version specifiers
+        # (the lock was compiled from them), so this only adds dev-only tools
+        # (pytest, ruff, bandit, pip-audit) without touching the pinned set.
+        run: pip install -e "backend[dev]"
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Run tests (coverage >= 90% enforced)
+        # --cov / --cov-fail-under come from pytest.ini addopts.
+        run: python -m pytest
+
+  frontend:
+    name: Frontend (lint + format + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: ESLint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Prettier check
+        working-directory: frontend
+        run: npm run format:check
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm test
+
+  security:
+    name: AppSec scan (SAST + dependency audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: "Install backend (includes dev: bandit, pip-audit)"
+        run: pip install -e "backend[dev]"
+
+      - name: Bandit SAST (Python)
+        # Analyze the runtime package; B if any HIGH-severity issue is found.
+        run: bandit -q -r backend/cyclotorsion -ll -x tests,scripts
+
+      - name: pip-audit (Python dependency CVEs)
+        # --fix is a boolean flag in pip-audit >=2.7 (not --fix=no); omitting
+        # it already means audit-only (no auto-upgrade), which is what CI
+        # wants. The old --fix=no form is a hard argparse error, not a no-op.
+        run: pip-audit -r backend/requirements.lock
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm audit (runtime deps)
+        working-directory: frontend
+        # dev-only deps for lint/test; runtime SDK is loaded from Google's CDN.
+        # No `|| true`: a HIGH+ finding must fail CI, not just be logged.
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: gitleaks (secret scan)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITLEAKS_NOTIFY_USER_LIST: ""
+
+      - name: tfsec (Terraform static analysis)
+        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
+        with:
+          working_directory: infra/terraform
+          # google-storage-bucket-encryption-customer-key: the backup bucket
+          # (bigquery.tf) already applies CMEK whenever var.use_cmek=true via
+          # a dynamic "encryption" block — tfsec can't evaluate that
+          # conditional statically. Inline `#tfsec:ignore:` comments on the
+          # resource did not suppress this finding against this pinned tfsec
+          # version (confirmed locally: `ignored` stayed 0), so it's excluded
+          # here via the CLI flag instead, which does work (verified locally
+          # with the exact pinned tfsec release, v1.28.14).
+          additional_args: --exclude google-storage-bucket-encryption-customer-key

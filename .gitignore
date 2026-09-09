@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+npm-debug.log*
+*.log
+
+# Environment / secrets
+.env
+.env.*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Data (synthetic/generated artifacts, not source)
+data/*
+!data/.gitkeep
+
+# Firebase CLI local cache (deploy-hash cache, not source)
+.firebase/
+
+# Terraform local provider plugin cache (downloaded by `terraform init`, not
+# source). .terraform.lock.hcl is NOT excluded here — that lock file is
+# meant to be committed, same convention as package-lock.json.
+infra/terraform/.terraform/

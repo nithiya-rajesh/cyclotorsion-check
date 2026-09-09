@@ -1,0 +1,30 @@
+# Only backend/ and scripts/ are ever COPY'd into an image (see docker/*.Dockerfile).
+# This file keeps everything else (and anything sensitive that shouldn't ride
+# along even inside backend/) out of the build context (AppSec review High:
+# CWE-538 — .gitignore is NOT respected by `docker build`, only this file is).
+
+# Everything not explicitly needed.
+*
+!backend/
+!scripts/
+
+# ...but never secrets, caches, or local artifacts, even inside those trees.
+**/.env
+**/.env.*
+**/*.json
+!backend/pyproject.toml
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/htmlcov/
+**/.coverage
+**/.coverage.*
+**/*.egg-info/
+**/.venv/
+**/venv/
+**/*credential*
+**/*secret*
+!backend/cyclotorsion/secrets.py
+**/*.pem
+**/*.key

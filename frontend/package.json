@@ -1,0 +1,22 @@
+{
+  "name": "cyclotorsion-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CyclotorsionCheck SPA — Firebase-Hosted, framework-free (no build step).",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules --experimental-test-module-mocks --test \"test/*.test.js\"",
+    "serve": "python -m http.server 8090",
+    "lint": "eslint js test",
+    "lint:fix": "eslint js test --fix",
+    "format": "prettier --write \"**/*.{js,html,css,json}\"",
+    "format:check": "prettier --check \"**/*.{js,html,css,json}\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@happy-dom/global-registrator": "^20.13.2",
+    "eslint": "^10.9.1",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6"
+  }
+}
