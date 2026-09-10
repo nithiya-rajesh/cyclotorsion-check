@@ -1,11 +1,18 @@
+<div align="center">
+
 # CyclotorsionCheck
 
-AI-powered, camera-based toric IOL alignment verification for cataract surgery — a free-tier alternative to $100,000+ digital marker hardware (Alcon VERION, Zeiss CALLISTO), built for India's public hospital system.
+**AI-powered, camera-based toric IOL alignment verification for cataract surgery** — a free-tier alternative to $100,000+ digital marker hardware (Alcon VERION, Zeiss CALLISTO), built for India's public hospital system.
+
+[![CI](https://github.com/nithiya-rajesh/cyclotorsion-check/actions/workflows/ci.yml/badge.svg)](https://github.com/nithiya-rajesh/cyclotorsion-check/actions/workflows/ci.yml)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen.svg)](https://patchamomma-2026-bigquery-lab.web.app)
+
+[Live Demo](https://patchamomma-2026-bigquery-lab.web.app) · [API Health](https://cyclotorsion-check-api-949330221093.us-central1.run.app/health) · [PRD](docs/PRD_CyclotorsionCheck.md) · [Technical Design](docs/TDD_CyclotorsionCheck.md)
+
+</div>
 
 > **Decision-support aid only.** This tool augments — never replaces — clinical judgment. It is not a diagnostic or autonomous therapeutic device. Results must be confirmed by the operating surgeon.
-
-**Live demo:** https://patchamomma-2026-bigquery-lab.web.app
-**API:** https://cyclotorsion-check-api-949330221093.us-central1.run.app ([`/health`](https://cyclotorsion-check-api-949330221093.us-central1.run.app/health))
 
 ---
 
@@ -24,6 +31,12 @@ Most surgeons — especially across India's high-volume public hospital system (
 
 All angle calculation and safety validation happen server-side; the frontend contains zero clinical business logic.
 
+## Screenshots
+
+| Sign in | Analyze | Result |
+|---|---|---|
+| ![Sign in](docs/screenshots/signin.png) | ![Analyze](docs/screenshots/analyze.png) | ![Result](docs/screenshots/result.png) |
+
 ## Tech stack
 
 | Layer | Technology |
@@ -40,7 +53,7 @@ All angle calculation and safety validation happen server-side; the frontend con
 ```
 backend/    FastAPI service — detection pipeline, auth, patients, storage
 frontend/   Framework-free SPA (login, analyze, patients, history, insights)
-docs/       PRD and Technical Design Document
+docs/       PRD, Technical Design Document, screenshots
 infra/      Terraform + gcloud deploy scripts
 scripts/    Synthetic data generation, accuracy evaluation, smoke tests
 docker/     Multi-stage Dockerfile (api + backup targets)
