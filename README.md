@@ -85,4 +85,4 @@ Working prototype, deployed and verified end-to-end (auth → detect → BigQuer
 
 ## License
 
-Non-commercial, portfolio-driven public health initiative — not a commercial venture. See [`docs/PRD_CyclotorsionCheck.md`](docs/PRD_CyclotorsionCheck.md) §3 for the adoption/sustainability model.
+[PolyForm Noncommercial License 1.0.0](LICENSE) — matches this project's intent as a non-commercial, portfolio-driven public health initiative, not a commercial venture. See [`docs/PRD_CyclotorsionCheck.md`](docs/PRD_CyclotorsionCheck.md) §3 for the adoption/sustainability model.
