@@ -80,6 +80,21 @@ class Config:
     firebase_credentials_path: str = ""
     # Approver store backend: "memory" (dev/tests) | "firebase" | "auto".
     provisioning_mode: str = "memory"
+    # Review-period convenience, OFF by default: when true, a newly
+    # registered account is automatically granted the `surgeon` role (rather
+    # than sitting "pending approval" until a facility_admin acts) so any
+    # visitor can genuinely exercise /detect, /stats, and the surgeon-level
+    # /patients endpoints without needing the operator in the loop. Does NOT
+    # widen access to facility_admin-only routes (patient erasure, account
+    # approval/admin management) — those still require real approval,
+    # regardless of this flag. Intended to be turned on only for a bounded
+    # external-review window, then back off.
+    auto_approve_new_users: bool = False
+    # Facility every auto-approved account is scoped to (see above). A
+    # single shared value is deliberate for a review window: reviewers can
+    # see each other's sample data rather than each starting in an empty,
+    # isolated facility.
+    auto_approve_facility_id: str = "review-demo"
 
     # --- Gemini detection ---
     # "auto" -> real Gemini when an API key or Vertex ADC is available, else mock.
@@ -161,6 +176,10 @@ class Config:
             auth_enabled=_env_bool("CC_AUTH_ENABLED", False),
             firebase_credentials_path=_env_str("CC_FIREBASE_CREDENTIALS"),
             provisioning_mode=_env_str("CC_PROVISIONING_MODE", "memory").lower(),
+            auto_approve_new_users=_env_bool("CC_AUTO_APPROVE_NEW_USERS", False),
+            auto_approve_facility_id=_env_str(
+                "CC_AUTO_APPROVE_FACILITY_ID", "review-demo"
+            ),
             detect_mode=_env_str("CC_DETECT_MODE", "auto").lower(),
             gemini_api_key=_env_str("GEMINI_API_KEY"),
             gemini_secret=_env_str("CC_GEMINI_SECRET"),

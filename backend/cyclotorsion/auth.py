@@ -203,6 +203,43 @@ def current_user(request: Request) -> UserContext:
     return _verify_with_firebase(token)
 
 
+def _try_auto_approve(user: UserContext) -> UserContext | None:
+    """Review-period convenience (cfg.auto_approve_new_users): grant a pending
+    account the `surgeon` role automatically instead of requiring a
+    facility_admin to act first. Returns the newly-approved context, or None
+    if auto-approval isn't enabled/applicable (caller falls back to the
+    normal fail-closed 403).
+
+    Persists a real custom-claims grant via the approval store (the same
+    call an admin's POST /admin/approve makes) so the account is genuinely
+    approved from here on, not just for this one request — and returns an
+    approved context immediately, so the caller doesn't have to wait for
+    their ID token to naturally refresh before the grant takes effect.
+    Best-effort: if the approval-store write fails, the caller falls back to
+    the normal pending-approval rejection rather than silently proceeding
+    unapproved.
+    """
+    if not (cfg.auto_approve_new_users and user.uid and is_pending_approval(user)):
+        return None
+    try:
+        from cyclotorsion.provisioning import get_approval_store
+
+        get_approval_store().approve(
+            user.uid, ROLE_SURGEON, cfg.auto_approve_facility_id
+        )
+    except Exception:  # noqa: BLE001 - best-effort; fall back to normal 403
+        logger.warning(
+            "auth.auto_approve_failed", extra={"event": "auth.auto_approve_failed"}
+        )
+        return None
+    return UserContext(
+        uid=user.uid,
+        email=user.email,
+        role=ROLE_SURGEON,
+        facility_id=cfg.auto_approve_facility_id,
+    )
+
+
 def require_any_role(*roles: str):
     """Dependency requiring the caller to hold one of ``roles`` (RBAC, TDD 5.2).
 
@@ -215,6 +252,13 @@ def require_any_role(*roles: str):
 
     def _dep(user: UserContext = Depends(current_user)) -> UserContext:
         if cfg.auth_enabled and user.role not in allowed:
+            # Auto-approval only ever grants `surgeon` — a route that doesn't
+            # accept that role (facility_admin-only account/erasure
+            # management) stays gated exactly as before, auto-approve or not.
+            if ROLE_SURGEON in allowed:
+                approved = _try_auto_approve(user)
+                if approved is not None:
+                    return approved
             detail = (
                 "Account pending approval"
                 if is_pending_approval(user)
@@ -249,6 +293,9 @@ def current_approved_user(
     ``rate_limit`` and ``concurrency_limit`` also depend on ``current_user``.
     """
     if cfg.auth_enabled and is_pending_approval(user):
+        approved = _try_auto_approve(user)
+        if approved is not None:
+            return approved
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account pending approval",

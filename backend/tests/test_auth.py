@@ -219,3 +219,130 @@ def test_verify_with_firebase_revoked_token_fails_closed(monkeypatch):
     with pytest.raises(HTTPException) as e:
         auth._verify_with_firebase("old-token")
     assert e.value.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# --------------------------------------------------------------------------- #
+# Review-period auto-approve (cfg.auto_approve_new_users)
+
+
+class _AutoApproveConfig:
+    """Minimal cfg stand-in exposing exactly what auth.py's auto-approve path
+    reads, so these tests don't depend on the real Config's full field set."""
+
+    def __init__(
+        self, auth_enabled=True, auto_approve_new_users=False, facility_id="review-demo"
+    ):
+        self.auth_enabled = auth_enabled
+        self.auto_approve_new_users = auto_approve_new_users
+        self.auto_approve_facility_id = facility_id
+
+
+def _pending_user(uid="new-uid"):
+    return auth.UserContext(
+        uid=uid, email="new@example.com", role=None, facility_id=None
+    )
+
+
+def _install_fake_approval_store(monkeypatch):
+    """Swap in a real InMemoryApprovalStore so approve() calls are observable,
+    without touching the process-wide singleton other tests may share."""
+    from cyclotorsion.provisioning import InMemoryApprovalStore
+
+    store = InMemoryApprovalStore()
+    monkeypatch.setattr("cyclotorsion.provisioning.get_approval_store", lambda: store)
+    return store
+
+
+def test_try_auto_approve_returns_none_when_disabled(monkeypatch):
+    monkeypatch.setattr(auth, "cfg", _AutoApproveConfig(auto_approve_new_users=False))
+    assert auth._try_auto_approve(_pending_user()) is None
+
+
+def test_try_auto_approve_returns_none_for_non_pending_user(monkeypatch):
+    monkeypatch.setattr(auth, "cfg", _AutoApproveConfig(auto_approve_new_users=True))
+    already_approved = auth.UserContext(
+        uid="u1", role=auth.ROLE_SURGEON, facility_id="fac_a"
+    )
+    assert auth._try_auto_approve(already_approved) is None
+
+
+def test_try_auto_approve_grants_surgeon_and_persists_it(monkeypatch):
+    monkeypatch.setattr(
+        auth,
+        "cfg",
+        _AutoApproveConfig(auto_approve_new_users=True, facility_id="review-demo"),
+    )
+    store = _install_fake_approval_store(monkeypatch)
+
+    approved = auth._try_auto_approve(_pending_user("new-uid"))
+
+    assert approved is not None
+    assert approved.role == auth.ROLE_SURGEON
+    assert approved.facility_id == "review-demo"
+    assert approved.uid == "new-uid"
+    # Persisted via the same store an admin's POST /admin/approve would use —
+    # not just an in-request-only bypass.
+    persisted = {u.uid: u for u in store.list_users()}
+    assert persisted["new-uid"].role == auth.ROLE_SURGEON
+    assert persisted["new-uid"].approved is True
+
+
+def test_current_approved_user_blocks_pending_when_auto_approve_disabled(monkeypatch):
+    monkeypatch.setattr(auth, "cfg", _AutoApproveConfig(auto_approve_new_users=False))
+    with pytest.raises(HTTPException) as e:
+        auth.current_approved_user(_pending_user())
+    assert e.value.status_code == status.HTTP_403_FORBIDDEN
+    assert "pending approval" in e.value.detail.lower()
+
+
+def test_current_approved_user_auto_approves_when_enabled(monkeypatch):
+    monkeypatch.setattr(auth, "cfg", _AutoApproveConfig(auto_approve_new_users=True))
+    _install_fake_approval_store(monkeypatch)
+
+    result = auth.current_approved_user(_pending_user())
+
+    assert result.role == auth.ROLE_SURGEON
+    assert result.is_pending_approval is False
+
+
+def test_require_any_role_auto_approves_when_surgeon_is_an_allowed_role(monkeypatch):
+    # /patients create/search/etc. allow (surgeon, facility_admin) — the
+    # surgeon-level auto-grant should let a fresh account through.
+    monkeypatch.setattr(auth, "cfg", _AutoApproveConfig(auto_approve_new_users=True))
+    _install_fake_approval_store(monkeypatch)
+    dep = auth.require_any_role(auth.ROLE_SURGEON, auth.ROLE_FACILITY_ADMIN)
+
+    result = dep(_pending_user())
+
+    assert result.role == auth.ROLE_SURGEON
+
+
+def test_require_any_role_does_not_auto_approve_facility_admin_only_routes(monkeypatch):
+    # Patient erasure and account/admin management are facility_admin-only —
+    # auto-approve must NOT quietly grant that, even during a review window.
+    # Otherwise any anonymous visitor could delete patient records or approve
+    # other accounts, which is a materially different risk than letting them
+    # try the core Analyze/Patients flow.
+    monkeypatch.setattr(auth, "cfg", _AutoApproveConfig(auto_approve_new_users=True))
+    _install_fake_approval_store(monkeypatch)
+    dep = auth.require_any_role(auth.ROLE_FACILITY_ADMIN)
+
+    with pytest.raises(HTTPException) as e:
+        dep(_pending_user())
+    assert e.value.status_code == status.HTTP_403_FORBIDDEN
+
+
+def test_try_auto_approve_falls_back_on_store_failure(monkeypatch):
+    # If persisting the grant fails, the caller must fall back to the normal
+    # fail-closed 403 rather than silently treating the request as approved.
+    monkeypatch.setattr(auth, "cfg", _AutoApproveConfig(auto_approve_new_users=True))
+
+    class _BrokenStore:
+        def approve(self, *a, **k):
+            raise RuntimeError("firestore unavailable")
+
+    monkeypatch.setattr(
+        "cyclotorsion.provisioning.get_approval_store", lambda: _BrokenStore()
+    )
+
+    assert auth._try_auto_approve(_pending_user()) is None
