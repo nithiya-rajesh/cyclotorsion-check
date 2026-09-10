@@ -77,7 +77,14 @@ jobs:
     name: AppSec scan (SAST + dependency audit)
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 (full history), not the default shallow clone -- gitleaks-action
+      # diffs base_sha^..head_sha to scan only the commits in this push, and that `^`
+      # (parent) lookup fails against a shallow clone once a push isn't the repo's very
+      # first commit ("unknown revision or path not in the working tree"), which the
+      # action then reports as a scan failure even though gitleaks found zero leaks.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
